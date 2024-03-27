@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
+  <title>Unity WebGL Player | BattleOfMinds_Actual</title>
+  <link rel="shortcut icon" href="TemplateData/favicon.ico">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="TemplateData/style.css">
+  <link rel="stylesheet" href="popup_style.css">
+</head>
+
+<body>
+  <!-- Всплывающее окно -->
+  <div class="popup" id="popup">
+    <span class="close" onclick="closePopup()">&times;</span>
+    <p id="popupText"></p>
+  </div>
+
+  <div id="unity-container" class="unity-desktop">
+    <canvas id="unity-canvas"></canvas>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+    <div id="unity-custom-loading-screen">
+
+      <div id="custom-logo">
+
+      </div>
+      <div id="custom-loader">
+        <div class="meter">
+          <span style="width: 0%"></span>
+        </div>
+      </div>
+
+
+
+    </div>
+    <div id="unity-warning"> </div>
+    <!-- <div id="unity-footer">
+      <div id="unity-webgl-logo"></div>
+      <div id="unity-fullscreen-button"></div>
+      <div id="unity-build-title">BattleOfMinds_Actual</div>
+    </div> -->
+  </div>
+
+  <!-- 
+  <div class="page-wrapper">
+    <header class="main-header"></header>
+    <main class="main">
+      <div class="container">
+        <div class="app">
+          <h1>Content</h1>
+          <button class="btn prompt-trigger" data-target="#add-main-screen">Открыть</button>
+          
+        </div>
+      </div>
+    </main>
+    <footer class="main-footer"></footer>
+  </div> -->
+
+
+  <script src="install_prompt.js"></script>
+  <script src="gameanalytics/GameAnalytics.js"></script>
+  <script src="playtime.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase.js"></script>
+  <script src="./firebase-messaging-sw.js"></script>
+  <!-- <script>
+    window.onbeforeunload = function () {
+      console.log("== handler 2 == ");
+      fetch('https://us-central1-dzgames-12ad8.cloudfunctions.net/BomSessionEvent?sessionId=6IIJFgTW07J9qDm1OUUo&uid=33066cf1f217df1214ad0d4399adf70900b1431f&eventName=SessionStatus:Running&userClass=class11&date=23.10.2023 12:02:14', {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'include',
+        keepalive: true
+      });
+      return "Are you sure you really want to leave the application?";
+    };
+  </script> -->
+  <!-- <script>
+    window.addEventListener('beforeunload', function (event) {
+      console.log("== handler == 4");
+      event.returnValue = 'Вы уверены, что хотите закрыть страницу?';
+      fetch('https://us-central1-dzgames-12ad8.cloudfunctions.net/BomSessionEvent?sessionId=6IIJFgTW07J9qDm1OUUo&uid=33066cf1f217df1214ad0d4399adf70900b1431f&eventName=SessionStatus:Running&userClass=class11&date=23.10.2023 12:02:14', {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'include',
+        keepalive: true
+      });
+      return event.returnValue;
+    });
+  </script> -->
+  <script>
+    console.log("HEY!");
+    const url = 'https://us-central1-dzgames-12ad8.cloudfunctions.net/BomSessionEvent?sessionId=6IIJFgTW07J9qDm1OUUo&uid=33066cf1f217df1214ad0d4399adf70900b1431f&eventName=SessionStatus:Running&userClass=class11&date=23.10.2023 12:02:14';
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.send();
+    console.log("HEY2!");
+  </script>
+  <script>
+    var container = document.querySelector("#unity-container");
+    var canvas = document.querySelector("#unity-canvas");
+    var loadingScreen = document.querySelector("#unity-custom-loading-screen");
+    var customLoadingBar = document.querySelector("#custom-loader");
+    // var fullscreenButton = document.querySelector("#unity-fullscreen-button");
+    var warningBanner = document.querySelector("#unity-warning");
+
+    // Shows a temporary message banner/ribbon for a few seconds, or
+    // a permanent error message on top of the canvas if type=='error'.
+    // If type=='warning', a yellow highlight color is used.
+    // Modify or remove this function to customize the visually presented
+    // way that non-critical warnings and error messages are presented to the
+    // user.
+    function unityShowBanner(msg, type) {
+      function updateBannerVisibility() {
+        warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+      }
+      var div = document.createElement('div');
+      div.innerHTML = msg;
+      warningBanner.appendChild(div);
+      if (type == 'error') div.style = 'background: red; padding: 10px;';
+      else {
+        if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+        setTimeout(function () {
+          warningBanner.removeChild(div);
+          updateBannerVisibility();
+        }, 5000);
+      }
+      updateBannerVisibility();
+    }
+
+    var buildUrl = "Build";
+    var loaderUrl = buildUrl + "/BOMWebGLRelease.loader.js";
+    var config = {
+      dataUrl: buildUrl + "/BOMWebGLRelease.data",
+      frameworkUrl: buildUrl + "/BOMWebGLRelease.framework.js",
+      codeUrl: buildUrl + "/BOMWebGLRelease.wasm",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "DZGames",
+      productName: "BattleOfMinds_Actual",
+      productVersion: "1.0",
+      showBanner: unityShowBanner,
+    };
+
+    // By default Unity keeps WebGL canvas render target size matched with
+    // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+    // Set this to false if you want to decouple this synchronization from
+    // happening inside the engine, and you would instead like to size up
+    // the canvas DOM size and WebGL render target sizes yourself.
+    // config.matchWebGLToCanvasSize = false;
+
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      // Mobile device style: fill the whole browser client area with the game canvas:
+
+      var meta = document.createElement('meta');
+      meta.name = 'viewport';
+      meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+      document.getElementsByTagName('head')[0].appendChild(meta);
+      container.className = "unity-mobile";
+
+      // To lower canvas resolution on mobile devices to gain some
+      // performance, uncomment the following line:
+      // config.devicePixelRatio = 1;
+
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+
+      //unityShowBanner('WebGL builds are not supported on mobile devices.');
+    } else {
+      // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
+
+      container.style.width = "100vw";
+      container.style.height = "100vh";
+
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      //canvas.style.width = "1920px";
+      //canvas.style.height = "1080px";
+    }
+
+    loadingScreen.style.display = "block";
+
+    let gameInstance = null;
+
+    var script = document.createElement("script");
+    script.src = loaderUrl;
+    var startingLoadingTime = new Date();
+    var ga_game_key = "e756bfe5fb0492687997f10fb2072261";
+    var ga_secret_key = "0a60f21ddb12b7496c5d51fa354644cbbb4490e3";
+    script.onload = () => {
+      //WARNING: THIS IS NOT WORKING WITH DESIGN AND ERROR EVENTS
+      //See: https://docs.gameanalytics.com/integrations/sdk/javascript/event-tracking#design-events
+      // let isDeveloper = localStorage.getItem('IsDeveloper');
+      // if (isDeveloper) {
+      //   gameanalytics.GameAnalytics.configureAvailableCustomDimensions03(["Developer"]);
+      //   console.log("This is developer. Custom dimension03 was set");
+      // }
+      //WARNING. Seems, that after second initialization in unity these will be reset
+      // gameanalytics.GameAnalytics.configureAvailableCustomDimensions01(
+      //   ["class1", "class2", "class3", "class4", "class5", "class6", "class7", "class8", "class9", "class10", "class11"]);
+
+      gameanalytics.GameAnalytics.setEnabledInfoLog(true);
+
+      gameanalytics.GameAnalytics.initialize(ga_game_key, ga_secret_key);
+      gameanalytics.GameAnalytics.addDesignEvent("ApplicationStatus:UnityAppStarting", 0);
+
+
+
+      createUnityInstance(canvas, config, (progress) => {
+        unitySetLoaderProgressTo(progress);
+
+      }).then((unityInstance) => {
+        gameInstance = unityInstance;
+
+        var completedLoadingTime = new Date();
+        console.log("Loading complete. Current time: " + completedLoadingTime);
+
+        var loadingTimeInSeconds = (completedLoadingTime.getTime() - startingLoadingTime.getTime()) / 1000;
+        gameanalytics.GameAnalytics.addDesignEvent("ApplicationStatus:UnityAppLoaded", loadingTimeInSeconds);
+
+        loadingScreen.style.display = "none";
+        onBuildLoaded();
+
+        //Not used right now. And not fully tested (is OnApplicationQuit really called)
+        // window.addEventListener("beforeunload", function (e) {
+        //   unityInstance.SendMessage('DataController', 'OnApplicationQuit');
+        //   //https://stackoverflow.com/questions/3888902/detect-browser-or-tab-closing
+        //   var confirmationMessage = "\o/";
+        //   (e || window.event).returnValue = confirmationMessage; //Gecko + IE
+        //   return confirmationMessage;                            //Webkit, Safari, Chrome
+        // });
+
+
+        const popup = document.getElementById('popup');
+        const popupText = document.getElementById('popupText');
+
+        console.log("Configuring fcm (in battleofminds)");
+
+        //Initialize Firebase
+        const firebaseConfig = {
+          apiKey: "AIzaSyASUsblqPPqu435t1WEFcGCY0doKpXjHMs",
+          authDomain: "dzgames-12ad8.firebaseapp.com",
+          databaseURL: "https://dzgames-12ad8-default-rtdb.firebaseio.com",
+          projectId: "dzgames-12ad8",
+          storageBucket: "dzgames-12ad8.appspot.com",
+          messagingSenderId: "343695752003",
+          appId: "1:343695752003:web:f5e27cd2fc8da5636e8df6",
+          measurementId: "G-H370NLEMEY"
+        };
+        firebase.initializeApp(firebaseConfig);
+
+        //checking, because safari not supports firebase messaging
+        if (firebase.messaging.isSupported()) { 
+          var messaging = firebase.messaging();
+          messaging.onTokenRefresh(function () {
+            messaging.getToken()
+              .then(function (refreshedToken) {
+                console.log('Token refreshed.');
+                localStorage.setItem("fcm_token", refreshedToken);
+                saveTokenToDatabase(refreshedToken);
+              })
+              .catch(function (err) {
+                console.log('Unable to retrieve refreshed token ', err);
+              });
+          });
+
+
+          //Message came when tab was active
+          messaging.onMessage(function (payload) {
+            console.log("Message received. ", payload);
+            // new Notification(payload.notification.title, payload.notification);
+
+
+            // Сбросим классы перед каждым новым показом
+            popup.classList.remove('show', 'hide');
+
+            // Показываем popup уведомление
+            popupText.innerText = payload.notification.title;
+            popup.classList.add('show');
+
+            // Закрываем через 2 секунды
+            setTimeout(function () {
+              popup.classList.remove('show');
+              popup.classList.add('hide');
+              console.log("Уведомление закрывается");
+            }, 3000);
+
+            // old
+            // popupText.innerText = payload.notification.body;
+            // popup.style.display = 'block';
+
+            // setTimeout(closePopup, 3000);
+          });
+
+          function closePopup() {
+            // Закрытие всплывающего окна
+            popup.classList.remove('show');
+            popup.classList.add('hide');
+
+            // old 
+            // popup.style.display = 'none';
+          }
+
+          function saveTokenToDatabase(token) {
+            let updates = { [token]: true }
+            let userId = getCookie("userId");
+            if (!userId) //Возможно, пользователь захочет выйти из профиля. TODO: нужна обработка сохранения последнего токена, если он не совпадает со старым в базе (обновить в базе на новый)
+              return;
+
+            firebase.database().ref(`allUsers/${userId}/fcmTokens`).update(updates).then(() => {
+              console.log("Completed updating token (not know result?)");
+            })
+          }
+
+          // Функция для чтения значения cookie по ключу
+          function getCookie(key) {
+            const cookies = document.cookie.split(';'); // Разбиваем строку cookie на массив
+            for (let i = 0; i < cookies.length; i++) {
+              const cookie = cookies[i].trim(); // Удаляем возможные пробелы
+              // Проверяем, начинается ли текущий cookie с нужного ключа
+              if (cookie.indexOf(key + '=') === 0) {
+                // Возвращаем значение cookie, удаляя ключ
+                return cookie.substring(key.length + 1);
+              }
+            }
+            // Если cookie с указанным ключом не найдено
+            return null;
+          }
+
+          //Вроде не нужно
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker
+              .register('/firebase-messaging-sw.js')
+              .then(function (registration) {
+                console.log('Registration successful, scope is:', registration.scope)
+              })
+              .catch(function (err) {
+                console.log('Service worker registration failed, error:', err)
+              })
+          }
+
+          /////////////////////////////////////////
+          // initializeFCM();
+          // function sendFCMTokenToUnity(token) {
+          //   unityInstance.SendMessage("FCMNotificationsManager", "OnNotificationPermissionResponse", token);
+          // }
+          // setFCMSubscribeCallback(sendFCMTokenToUnity);
+
+
+
+
+          //===============================================
+
+          // window.addEventListener('unload', function (event) {
+          //   // Проверяем, подтверждено ли закрытие вкладки
+          //   if (navigator.sendBeacon) {
+          //     // Если нет, выполняем отправку GET запроса с помощью sendBeacon
+          //     var url = 'https://us-central1-dzgames-12ad8.cloudfunctions.net/BomSessionEvent?sessionId=6IIJFgTW07J9qDm1OUUo&uid=33066cf1f217df1214ad0d4399adf70900b1431f&eventName=SessionStatus:PlayTimeTest&userClass=class11&date=empty';
+          //     navigator.sendBeacon(url);
+
+          //     unityInstance.SendMessage('DataController', 'OnApplicationQuit');
+          //     unityInstance.SendMessage('GA_PlayTime', 'OnApplicationQuit');
+          //     console.log('Закрытие вкладки было подтверждено');
+          //     // Дополнительный код здесь
+          //   }
+          // });
+
+
+
+          // window.addEventListener("onbeforeunload", function (e) {
+          //   unityInstance.SendMessage('DataController', 'OnApplicationQuit');
+          //   unityInstance.SendMessage('GA_PlayTime', 'OnApplicationQuit');
+
+          //   //https://stackoverflow.com/questions/3888902/detect-browser-or-tab-closing
+          //   var confirmationMessage = "\o/";
+          //   (e || window.event).returnValue = confirmationMessage; //Gecko + IE
+          //   return confirmationMessage;                            //Webkit, Safari, Chrome
+          // });
+
+          //working after close tab and before confirm
+          // window.onbeforeunload = function () {
+          //   unityInstance.SendMessage('DataController', 'OnApplicationQuit');
+          //   unityInstance.SendMessage('GA_PlayTime', 'OnApplicationQuit');
+          //   return "Are you sure you really want to leave the application?";
+          // };
+
+          // window.unlo = function () {
+          //   unityInstance.SendMessage('DataController', 'OnApplicationQuit');
+          //   unityInstance.SendMessage('GA_PlayTime', 'OnApplicationQuit');
+          //   return "Are you sure you really want to leave the application?";
+          // };
+
+          // var ask = true;
+          // window.onbeforeunload = function (e) {
+
+
+          //   if (!ask) return null
+          //   e = e || window.event;
+          //   //old browsers
+          //   if (e) { e.returnValue = 'Sure?'; }
+          //   //safari, chrome(chrome ignores text)
+          //   return 'Sure?';
+          // };
+
+          // window.onunload = function (e) {
+          //   // Проверяем, подтверждено ли закрытие вкладки
+          //   if (navigator.sendBeacon) {  
+          //     // Если нет, выполняем отправку GET запроса с помощью sendBeacon
+          //     var url = 'https://us-central1-dzgames-12ad8.cloudfunctions.net/BomSessionEvent?sessionId=6IIJFgTW07J9qDm1OUUo&uid=33066cf1f217df1214ad0d4399adf70900b1431f&eventName=SessionStatus:Running&userClass=class11&date=empty';
+          //     navigator.sendBeacon(url);
+
+          //     console.log('Закрытие вкладки было подтверждено');
+          //     // Дополнительный код здесь
+          //   }
+          // };
+
+
+
+
+          // window.addEventListener('unload', function (event) {
+          //   // Проверяем, подтверждено ли закрытие вкладки
+          //   if (!navigator.sendBeacon) {
+
+          //      // Если нет, выполняем отправку GET запроса
+          //      var url = 'https://us-central1-dzgames-12ad8.cloudfunctions.net/BomSessionEvent?sessionId=6IIJFgTW07J9qDm1OUUo&uid=33066cf1f217df1214ad0d4399adf70900b1431f&eventName=SessionStatus:Running&userClass=class11&date=23.10.2023 12:02:14';
+
+          //     // Опция 1: Используя XMLHttpRequest
+          //     var xhr = new XMLHttpRequest();
+          //     xhr.open('GET', url, true);
+          //     xhr.send();
+
+          //     // Опция 2: Используя fetch
+          //     // fetch(url, {
+          //     //   method: 'GET',
+          //     //   mode: 'cors'
+          //     // });
+
+
+          //     // Если нет, выполняем определенные действия
+          //     // Например, отправляем данные на сервер или выполняем очистку
+          //     unityInstance.SendMessage('DataController', 'OnApplicationQuit');
+          //     unityInstance.SendMessage('GA_PlayTime', 'OnApplicationQuit');
+          //     console.log('Закрытие вкладки было подтверждено');
+          //     // Дополнительный код здесь
+          //   }else{
+          //     console.log("Отмена закрытия вкладки");
+          //   }
+          // });
+        } else{
+          localStorage.setItem("fcm_token", '');
+        }
+
+
+      }).catch((message) => {
+        alert(message);
+      });
+    };
+    document.body.appendChild(script);
+
+    function unitySetLoaderProgressTo(value) {
+
+      console.log("Loader value: " + value)
+      const meterSpans = document.querySelectorAll(".meter > span");
+
+      for (const span of meterSpans) {
+        const originalWidth = span.offsetWidth;
+        span.style.width = "0px";
+
+        // Анимация ширины
+        span.animate(
+          [{ width: (value * 100) + "%" }],
+          {
+            duration: 300,
+            fill: "forwards"
+          }
+        );
+      }
+    }
+  </script>
+</body>
+
+</html>
